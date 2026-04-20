@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Turing Machine Simulator — Bhavesh</title>
+  <meta name="description" content="Interactive visual Turing Machine Simulator with 4 predefined machines: Palindrome Checker, Binary Incrementer, aⁿbⁿ Recognizer, and Unary Copy Machine. Step-by-step tape animation." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- ═══════════════════════════ HEADER ═══════════════════════════ -->
+  <header class="site-header">
+    <div class="header-inner">
+      <div class="logo-group">
+        <div class="logo-icon">TM</div>
+        <div>
+          <h1 class="site-title">Turing Machine Simulator</h1>
+          <p class="site-sub">4 Machines · Visual Tape · Step-by-Step</p>
+        </div>
+      </div>
+      <nav class="header-nav">
+        <button id="nav-simulator" class="nav-btn active" onclick="showTab('simulator')">⚙ Simulator</button>
+        <button id="nav-theory"    class="nav-btn"        onclick="showTab('theory')">📐 Theory</button>
+      </nav>
+    </div>
+  </header>
+
+  <!-- ═══════════════════════════ MAIN ═════════════════════════════ -->
+  <main class="main-container">
+
+    <!-- ══════════ TAB: SIMULATOR ══════════ -->
+    <section id="tab-simulator" class="tab-section active">
+
+      <!-- Machine selection cards -->
+      <div id="machine-grid" class="machine-grid" style="margin-bottom:1.5rem;"></div>
+
+      <!-- Machine info strip -->
+      <div class="panel machine-info-panel" style="margin-bottom:1.5rem;">
+        <div class="panel-header">
+          <span class="panel-icon">💡</span>
+          <h2>Machine Overview</h2>
+        </div>
+        <div class="panel-body">
+          <div>
+            <p id="machine-desc" class="info-desc">Select a machine above to see its description.</p>
+          </div>
+          <div>
+            <div class="examples-title">Example Inputs</div>
+            <ul id="examples-list" class="examples-list"></ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- Result banner -->
+      <div id="result-banner" class="result-banner hidden"></div>
+
+      <!-- Sim grid: config LEFT + tape+log RIGHT -->
+      <div class="sim-grid">
+
+        <!-- LEFT: config panel -->
+        <div class="panel" style="align-self:start;">
+          <div class="panel-header">
+            <span class="panel-icon">⚙️</span>
+            <h2>Configuration</h2>
+          </div>
+          <div class="panel-body">
+
+            <div class="form-group">
+              <label class="form-label" for="input-string">Input String</label>
+              <div class="input-row">
+                <input id="input-string" class="tm-input" type="text"
+                  placeholder="e.g. abba (empty = ε)" autocomplete="off" spellcheck="false" />
+                <button class="btn btn-secondary btn-sm" onclick="clearInput()" title="Clear">✕</button>
+              </div>
+              <span id="alpha-hint" class="alpha-hint">Allowed: a, b</span>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="speed-range">Animation Speed</label>
+              <div class="speed-row">
+                <span class="speed-label">Slow</span>
+                <input id="speed-range" type="range" min="50" max="1000" value="400" step="50"
+                  oninput="updateSpeedLabel()" />
+                <span class="speed-label">Fast</span>
+              </div>
+              <span id="speed-val" class="alpha-hint">650 ms/step</span>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="step-limit">Step Limit</label>
+              <input id="step-limit" class="tm-input" type="number" value="10000" min="1" max="100000" />
+            </div>
+
+            <div class="btn-group" style="margin-top:.5rem;">
+              <button id="btn-run"   class="btn btn-primary"   onclick="startRun()">▶ Run</button>
+              <button id="btn-step"  class="btn btn-secondary" onclick="doStep()">⏭ Step</button>
+              <button id="btn-pause" class="btn btn-warn"      onclick="pauseRun()" disabled>⏸ Pause</button>
+              <button id="btn-reset" class="btn btn-danger"    onclick="resetSim()">↺ Reset</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- RIGHT: tape + transitions + log -->
+        <div class="sim-right">
+
+          <!-- Tape visualizer -->
+          <div class="panel tape-panel">
+            <div class="tape-header-row">
+              <div class="tape-header-left">
+                <span class="panel-icon">📼</span>
+                <h2>Tape</h2>
+              </div>
+              <div id="status-badge" class="status-badge">READY</div>
+            </div>
+            <div class="tape-scroll-area">
+              <div id="tape-cells" class="tape-cells"></div>
+            </div>
+            <div class="tape-meta-row">
+              <div class="meta-chip" id="meta-state">State: —</div>
+              <div class="meta-chip" id="meta-step">Step: 0</div>
+              <div class="meta-chip" id="meta-head">Head: 0</div>
+              <div class="meta-chip" id="meta-read">Read: —</div>
+            </div>
+          </div>
+
+          <!-- Transition table -->
+          <div class="panel">
+            <div class="panel-header">
+              <span class="panel-icon">📋</span>
+              <h2>Transition Function δ</h2>
+            </div>
+            <div class="trans-scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th>From State</th>
+                    <th>Read</th>
+                    <th>To State</th>
+                    <th>Write</th>
+                    <th>Move</th>
+                  </tr>
+                </thead>
+                <tbody id="trans-body"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Execution log -->
+          <div class="panel">
+            <div class="panel-header">
+              <span class="panel-icon">📜</span>
+              <h2>Execution Log</h2>
+              <button class="btn btn-secondary btn-sm" onclick="clearLog()" style="margin-left:auto;">Clear</button>
+            </div>
+            <div id="log-container" class="log-container">
+              <table>
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>State</th>
+                    <th>Read</th>
+                    <th>Head</th>
+                    <th>Tape</th>
+                    <th>Transition</th>
+                  </tr>
+                </thead>
+                <tbody id="log-body"></tbody>
+              </table>
+              <p id="log-empty" class="log-empty">No simulation run yet. Press ▶ Run or ⏭ Step to begin.</p>
+            </div>
+          </div>
+
+        </div><!-- /sim-right -->
+      </div><!-- /sim-grid -->
+    </section>
+
+    <!-- ══════════ TAB: THEORY ══════════ -->
+    <section id="tab-theory" class="tab-section">
+      <div class="theory-grid">
+
+        <div class="panel">
+          <div class="panel-header"><span class="panel-icon">🧠</span><h2>What is a Turing Machine?</h2></div>
+          <div class="theory-content">
+            <p>A <strong>Turing Machine (TM)</strong> is an abstract mathematical model of computation invented by <strong>Alan Turing in 1936</strong>. Despite its simplicity, it can compute anything a modern computer can compute — this is the <em>Church-Turing Thesis</em>.</p>
+            <p>It consists of:</p>
+            <ul>
+              <li><strong>Infinite Tape</strong> — divided into cells, each holding one symbol or blank.</li>
+              <li><strong>Read/Write Head</strong> — reads, writes, then moves Left (L), Right (R), or Stays (S).</li>
+              <li><strong>State Register</strong> — tracks the current state from a finite set Q.</li>
+              <li><strong>Transition Function δ</strong> — maps (state, symbol) → (new state, write symbol, direction).</li>
+            </ul>
+            <p>The machine halts when it enters an <strong>accept</strong> or <strong>reject</strong> state.</p>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header"><span class="panel-icon">📐</span><h2>Formal Definition (7-Tuple)</h2></div>
+          <div class="theory-content">
+            <p><strong>M = (Q, Σ, Γ, δ, q₀, q<sub>acc</sub>, q<sub>rej</sub>)</strong></p>
+            <div class="tuple-table">
+              <div class="tuple-row"><span class="tuple-sym">Q</span><span>Finite, non-empty set of states</span></div>
+              <div class="tuple-row"><span class="tuple-sym">Σ</span><span>Input alphabet (blank ∉ Σ)</span></div>
+              <div class="tuple-row"><span class="tuple-sym">Γ</span><span>Tape alphabet (Σ ⊆ Γ, includes blank _)</span></div>
+              <div class="tuple-row"><span class="tuple-sym">δ</span><span>δ: Q × Γ → Q × Γ × {L, R, S}</span></div>
+              <div class="tuple-row"><span class="tuple-sym">q₀</span><span>Start state (q₀ ∈ Q)</span></div>
+              <div class="tuple-row"><span class="tuple-sym">q<sub>acc</sub></span><span>Accept (halting) state</span></div>
+              <div class="tuple-row"><span class="tuple-sym">q<sub>rej</sub></span><span>Reject (halting) state ≠ q<sub>acc</sub></span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header"><span class="panel-icon">🔁</span><h2>Machine 1 — Palindrome Checker</h2></div>
+          <div class="theory-content">
+            <span class="machine-tag">Σ = {a, b}</span>
+            <p style="margin-top:.75rem;">Accepts strings that read the same forwards and backwards using an <em>erase-and-check</em> strategy:</p>
+            <ol>
+              <li>Read the <em>leftmost</em> un-erased symbol; replace with <strong>X</strong>; remember it.</li>
+              <li>Scan all the way to the right end of the tape.</li>
+              <li>Check if the <em>rightmost</em> un-erased symbol matches. If mismatch → <strong>REJECT</strong>.</li>
+              <li>If match → erase it (X) and return to the left. Repeat.</li>
+              <li>If only X's remain (or tape is empty) → <strong>ACCEPT</strong>.</li>
+            </ol>
+            <p>Try: <code>abba</code> ✓ · <code>aba</code> ✓ · <code>abab</code> ✗</p>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header"><span class="panel-icon">➕</span><h2>Machine 2 — Binary Incrementer</h2></div>
+          <div class="theory-content">
+            <span class="machine-tag">Σ = {0, 1}</span>
+            <p style="margin-top:.75rem;">Adds 1 to a binary number on the tape (MSB left, LSB right):</p>
+            <ol>
+              <li>Scan right to find the <em>end</em> (LSB).</li>
+              <li>Move left: flip each trailing <strong>1 → 0</strong> (carry propagation).</li>
+              <li>When a <strong>0</strong> is found → flip to <strong>1</strong> (carry absorbed). <strong>ACCEPT</strong>.</li>
+              <li>If the entire number was 1s → overflow: write <strong>1</strong> in the new leading position.</li>
+            </ol>
+            <p>Try: <code>101</code> → <code>110</code> · <code>111</code> → <code>1000</code></p>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header"><span class="panel-icon">⚖️</span><h2>Machine 3 — aⁿbⁿ Recognizer</h2></div>
+          <div class="theory-content">
+            <span class="machine-tag">Σ = {a, b}</span>
+            <p style="margin-top:.75rem;">Accepts strings of the form <strong>aⁿbⁿ</strong> (n ≥ 1) — classic context-free language demonstrating TM power:</p>
+            <ol>
+              <li>Cross the leftmost uncrossed <strong>a</strong> (mark X), scan right.</li>
+              <li>Cross the first uncrossed <strong>b</strong> encountered (mark X), return left.</li>
+              <li>Repeat steps 1–2 until all a's are crossed.</li>
+              <li>Verify no uncrossed b's remain → <strong>ACCEPT</strong>. Any remaining → <strong>REJECT</strong>.</li>
+              <li>Empty input or b-first string → <strong>REJECT</strong>.</li>
+            </ol>
+            <p>Try: <code>ab</code> ✓ · <code>aabb</code> ✓ · <code>aaabbb</code> ✓ · <code>aab</code> ✗</p>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header"><span class="panel-icon">📋</span><h2>Machine 4 — Unary Copy Machine</h2></div>
+          <div class="theory-content">
+            <span class="machine-tag">Σ = {a}</span>
+            <p style="margin-top:.75rem;">Copies a unary string — appends a duplicate after a separator <code>b</code>:</p>
+            <ol>
+              <li>Find the next unmarked <strong>a</strong> in the original section; replace with <strong>A</strong> (mark).</li>
+              <li>Scan right to the end of the tape — if separator <code>b</code> exists, skip copy section; else write it.</li>
+              <li>Append one new <strong>a</strong> at the very end of the tape.</li>
+              <li>Return to leftmost cell and repeat from step 1.</li>
+              <li>When all original a's are marked (hit <code>b</code> in step 1) → <strong>ACCEPT</strong>.</li>
+            </ol>
+            <p>Try: <code>aaa</code> → <code>AAAbaaa</code> · <code>a</code> → <code>Aba</code></p>
+          </div>
+        </div>
+
+      </div><!-- /theory-grid -->
+    </section>
+
+  </main>
+
+  <!-- ═══════════════════════════ FOOTER ═══════════════════════════ -->
+  <footer class="site-footer">
+    <p>Turing Machine Simulator &mdash; 4 Machines &bull; Visual Tape Animation &bull; Step-by-Step Execution</p>
+    <p style="margin-top:.35rem;">Built for <strong>Bhavesh</strong> &bull; Theory of Computation Project</p>
+  </footer>
+
+  <script src="tm-engine.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
